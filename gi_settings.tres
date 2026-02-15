@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="GISettings" format=3 uid="uid://cpwbtf63yhng5"]
+
+[ext_resource type="Script" uid="uid://by7kfaap6eanj" path="res://gi_settings.gd" id="1_4r7ly"]
+
+[resource]
+script = ExtResource("1_4r7ly")
+radius = 4.0
+gi_intensity = 1.0
+samples = 32
+slices = 1
+blur_intensity = 1.5
+use_backface_rejection = true
+use_temporal_accumulation = true
