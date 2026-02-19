@@ -27,7 +27,11 @@ func _init() -> void:
 	
 	shader = rd.shader_create_from_spirv(shader_spirv)
 	pipeline = rd.compute_pipeline_create(shader)
-	sampler_state = rd.sampler_create(RDSamplerState.new())
+	var ss = RDSamplerState.new()
+	ss.mag_filter = RenderingDevice.SAMPLER_FILTER_LINEAR
+	ss.min_filter = RenderingDevice.SAMPLER_FILTER_LINEAR
+	
+	sampler_state = rd.sampler_create(ss)
 
 
 func _notification(what : int) -> void:
@@ -146,9 +150,6 @@ func _render_callback(effect_callback_type, render_data):
 		enabled = false
 		return
 
-	if settings_buffer.is_valid():
-		rd.free_rid(settings_buffer)
-
 	if rd and effect_callback_type == EFFECT_CALLBACK_TYPE_POST_TRANSPARENT:
 		# Get our render scene buffers object, this gives us access to our render buffers.
 		# Note that implementation differs per renderer hence the need for the cast.
@@ -163,24 +164,30 @@ func _render_callback(effect_callback_type, render_data):
 			if saved_half_res != gi_settings.half_res:
 				render_scene_buffers.clear_context("ssgi")
 
-			if not render_scene_buffers.has_texture("ssgi", "result"):
+			if not render_scene_buffers.has_texture("ssgi", "raw_result"):
 				saved_half_res = gi_settings.half_res
 				if gi_settings.half_res:
-					render_scene_buffers.create_texture("ssgi", "result", RenderingDevice.DATA_FORMAT_R16G16B16A16_SFLOAT, RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT | RenderingDevice.TEXTURE_USAGE_STORAGE_BIT, RenderingDevice.TEXTURE_SAMPLES_1, half_size, 1, 1, true, false)
+					render_scene_buffers.create_texture("ssgi", "raw_result", RenderingDevice.DATA_FORMAT_R16G16B16A16_SFLOAT, RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT | RenderingDevice.TEXTURE_USAGE_STORAGE_BIT, RenderingDevice.TEXTURE_SAMPLES_1, half_size, 1, 1, true, false)
 				else:
-					render_scene_buffers.create_texture("ssgi", "result", RenderingDevice.DATA_FORMAT_R16G16B16A16_SFLOAT, RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT | RenderingDevice.TEXTURE_USAGE_STORAGE_BIT, RenderingDevice.TEXTURE_SAMPLES_1, size, 1, 1, true, false)
+					render_scene_buffers.create_texture("ssgi", "raw_result", RenderingDevice.DATA_FORMAT_R16G16B16A16_SFLOAT, RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT | RenderingDevice.TEXTURE_USAGE_STORAGE_BIT, RenderingDevice.TEXTURE_SAMPLES_1, size, 1, 1, true, false)
 
-			ssgi_img = render_scene_buffers.get_texture("ssgi", "result")
+			ssgi_img = render_scene_buffers.get_texture("ssgi", "raw_result")
 
 			# Push constant
 			var push_constant := PackedByteArray()
 			push_constant.resize(32)
-			push_constant.encode_s32(0, size.x)
-			push_constant.encode_s32(4, size.y)
+			if gi_settings.half_res:
+				push_constant.encode_s32(0, half_size.x)
+				push_constant.encode_s32(4, half_size.y)
+			else:
+				push_constant.encode_s32(0, size.x)
+				push_constant.encode_s32(4, size.y)
 			push_constant.encode_float(8, 0.05)
 			push_constant.encode_float(12, 4000.0)
 			push_constant.encode_u32(16, Engine.get_frames_drawn())
 
+			if settings_buffer.is_valid():
+				rd.free_rid(settings_buffer)
 			_create_settings_buffer()
 
 			# Loop through views just incase its stereo

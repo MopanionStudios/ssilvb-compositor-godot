@@ -4,10 +4,6 @@
 
 [resource]
 script = ExtResource("1_4r7ly")
-radius = 4.0
 gi_intensity = 1.0
-samples = 32
-slices = 1
-blur_intensity = 1.5
-use_backface_rejection = true
-use_temporal_accumulation = true
+edge_threshold = 0.6
+depth_edge_threshold = 0.3

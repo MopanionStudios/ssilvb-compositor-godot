@@ -158,13 +158,8 @@ vec3 Transform_Vz0Qz0(vec2 v, vec4 q) {
 }
 
 // Helper functions
-vec4 normal_roughness_compatibility(vec4 p_normal_roughness) {
-	float roughness = p_normal_roughness.w;
-	if (roughness > 0.5) {
-		roughness = 1.0 - roughness;
-	}
-	roughness /= (127.0 / 255.0);
-	return vec4(normalize(p_normal_roughness.xyz * 2.0 - 1.0) * 0.5 + 0.5, roughness);
+vec3 normal_compatibility(vec3 p_normal) {
+	return vec3(normalize(p_normal * 2.0 - 1.0) * 0.5 + 0.5);
 }
 
 uint count_bits(uint v)
@@ -199,7 +194,7 @@ vec4 rnd01x4(ivec2 pixel, uint n) {
     vec4 rnd01 = vec4(0.0);
 
     rnd01.x = ign(pixel, n);
-    rnd01.zw = ign_01x4(pixel, n);
+    rnd01.zw = ign_01x4(pixel, n + 1u);
 
     return rnd01;
 }
@@ -208,7 +203,7 @@ vec4 ssilvb(vec2 uv0, float raw_depth, vec3 nor) {
     
 
     vec3 vs_pos = clipspace_to_viewspace(uv0, raw_depth);
-    vec3 vs_normal = nor;
+    vec3 vs_normal = normalize(nor * 2.0 - 1.0);
     
     vec3 v = -normalize(vs_pos);
     
@@ -309,7 +304,7 @@ vec4 ssilvb(vec2 uv0, float raw_depth, vec3 nor) {
                 if (vis_bits0 != 0u) {
 
                     if (gi_params.backface_rejection) {
-                        vec3 n0 = normal_roughness_compatibility(texture(normal_buffer, sample_uv)).rgb;
+                        vec3 n0 = normalize(normal_compatibility(texture(normal_buffer, sample_uv).rgb) * 2.0 - 1.0);
 
                         vec3 proj_n0 = n0 - slice_n * dot(n0, slice_n);
                         float proj_n0_sqr_len = dot(proj_n0, proj_n0);
@@ -368,16 +363,15 @@ void main() {
     vec2 uv0 = (vec2(texel) + 0.5) / vec2(params.screen_size);
 
     vec4 lighting;
-    float depth = texture(depth_buffer, uv0).r;
-    vec4 originial_color = texture(color_buffer, uv0);
+    float depth = LinDepth_from_NonLinDepth(texture(depth_buffer, uv0).r);
 
-    if (depth <= 0.0001) {
+    if (depth <= 0.001) {
         imageStore(output_image, itex, vec4(0.0, 0.0, 0.0, 1.0));
     } else {
-        vec4 normal = texture(normal_buffer, uv0);
-        normal = normal_roughness_compatibility(normal);
+        vec3 normal = texture(normal_buffer, uv0).rgb;
+        normal = normal_compatibility(normal);
 
-        lighting = ssilvb(uv0, depth, normal.rgb);
+        lighting = ssilvb(uv0, NonLinDepth_from_LinDepth(depth), normal);
 
         imageStore(output_image, itex, lighting);
     }
