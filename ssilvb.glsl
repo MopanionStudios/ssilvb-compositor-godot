@@ -72,8 +72,7 @@ vec3 VPos_from_SPos(vec3 spos) {
     
     vec2 uv = spos.xy / vec2(params.screen_size) * 2.0 - 1.0;
     float depth = spos.z;
-    depth = NonLinDepth_from_LinDepth(depth);
-        
+    // depth by default is nonlinear, so we dont need to convert it here
     vec4 p_pos = vec4(uv, depth, 1.0);
     vec4 view_pos = matrices.inv_proj * p_pos;
     view_pos /= view_pos.w;
@@ -91,6 +90,7 @@ vec3 viewspace_to_screenspace(vec3 vpos) {
 
 vec3 clipspace_to_viewspace(vec2 tex_coord, float raw_depth) {
     vec2 ndc_uv = tex_coord * 2.0 - 1.0;
+    // pretty sure we want nonlinear depth here, judging by the fact i named this raw_depth when I made it.
     vec4 clipspace = vec4(ndc_uv, raw_depth, 1.0);
     vec4 viewspace = matrices.inv_proj * clipspace;
     return viewspace.xyz / viewspace.w;
@@ -217,13 +217,13 @@ vec4 ssilvb(vec2 uv0, float raw_depth, vec3 nor) {
     
     for (uint i = 0u; i < dir_count; ++i) {
         uint n = frame * dir_count + i;
-        vec4 rnd01 = rnd01x4(ivec2((uv0 - 0.5) * vec2(params.screen_size)), n);
+        vec4 rnd01 = rnd01x4(ivec2((uv0) * vec2(params.screen_size)), n);
         
         vec3 sample_dir_vs;
         vec2 dir;
         
         dir = vec2(cos(rnd01.x * pi), sin(rnd01.x * pi));
-        sample_dir_vs = vec3(dir, 0.0);
+        sample_dir_vs = vec3(dir, vs_pos.z);
         
         vec4 q_to_v = GetQuaternion(v);
         sample_dir_vs = Transform_Vz0Qz0(dir, q_to_v);
